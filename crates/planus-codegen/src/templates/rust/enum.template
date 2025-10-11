@@ -1,13 +1,13 @@
-{% for docstring in docstrings.iter_strings() %}
+{% for docstring in docstrings.iter_strings_without_locations() %}
 /// {{ docstring }}
 {%- endfor %}
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, ::serde::Serialize, ::serde::Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, ::serde::Serialize, ::serde::Deserialize, ::utoipa::ToSchema)]
 {%- if !variants.is_empty() -%}
 #[repr({{info.repr_type}})]
 {%- endif -%}
 pub enum {{ info.name }} {
     {% for variant in variants -%}
-        {% for docstring in variant.name_and_docs.docstrings.iter_strings() %}
+        {% for docstring in variant.name_and_docs.docstrings.iter_strings_without_locations() %}
         /// {{ docstring }}
         {%- endfor %}
         {{ variant.name }} = {{ variant.value }},

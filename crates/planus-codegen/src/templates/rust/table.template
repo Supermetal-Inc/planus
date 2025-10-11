@@ -1,13 +1,14 @@
-{% for docstring in docstrings.iter_strings() %}
+{% for docstring in docstrings.iter_strings_without_locations() %}
 /// {{ docstring }}
 {%- endfor %}
 #[derive(Clone, Debug, PartialEq, PartialOrd,
 {% if info.should_do_eq %}Eq, Ord, Hash,{% endif %}
-::serde::Serialize, ::serde::Deserialize
+::serde::Serialize, ::serde::Deserialize,
+::utoipa::ToSchema
 )]
 pub struct {{ info.owned_name }}{
     {% for field in fields.declaration_order() -%}
-        {% for docstring in field.name_and_docs.docstrings.iter_strings() %}
+        {% for docstring in field.name_and_docs.docstrings.iter_strings_without_locations() %}
         /// {{ docstring }}
         {%- endfor %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},

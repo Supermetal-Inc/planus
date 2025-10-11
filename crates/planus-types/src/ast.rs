@@ -600,4 +600,11 @@ impl Docstrings {
                     .flatten(),
             )
     }
+
+    /// Returns only explicit docstrings from source files, excluding auto generated defaults and location info (like "generated from abc.fbs")
+    pub fn iter_strings_without_locations(&self) -> impl Iterator<Item = &str> {
+        self.docstrings
+            .iter()
+            .map(|docstring| docstring.value.as_str())
+    }
 }
