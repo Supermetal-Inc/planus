@@ -11,6 +11,14 @@ pub struct {{ info.owned_name }}{
         {% for docstring in field.name_and_docs.docstrings.iter_strings_without_locations() %}
         /// {{ docstring }}
         {%- endfor %}
+        {%- if field.info.has_default %}
+        #[serde(default)]  // Use default value if field is missing in JSON
+        {%- match field.info.schema_default %}
+        {%- when Some with (default_val) %}
+        #[schema(default = {{ default_val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- endif %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},
     {%- endfor -%}
 }

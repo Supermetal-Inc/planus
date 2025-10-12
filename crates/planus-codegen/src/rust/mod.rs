@@ -55,6 +55,7 @@ pub struct TableField {
     pub impl_default_code: Cow<'static, str>,
     pub serialize_default: Option<Cow<'static, str>>,
     pub deserialize_default: Option<Cow<'static, str>>,
+    pub schema_default: Option<Cow<'static, str>>,
     pub try_from_code: String,
     pub is_copy: bool,
 }
@@ -105,6 +106,8 @@ pub struct UnionVariant {
     pub create_trait: String,
     pub builder_name: String,
     pub enum_name: String,
+    /// Original snake_case name from .fbs
+    pub original_name: String,
     pub owned_type: String,
     pub ref_type: String,
     pub is_struct: bool,
@@ -314,6 +317,7 @@ impl Backend for RustBackend {
         let primitive_size;
         let mut serialize_default: Option<Cow<'static, str>> = None;
         let mut deserialize_default: Option<Cow<'static, str>> = None;
+        let mut schema_default: Option<Cow<'static, str>> = None;
         let mut impl_default_code: Cow<'static, str> = "::core::default::Default::default()".into();
         let mut try_from_code = if matches!(field.assign_mode, AssignMode::Optional) {
             format!(
@@ -741,6 +745,8 @@ impl Backend for RustBackend {
                         impl_default_code = format!("{lit}").into();
                         serialize_default = Some(format!("&{lit}").into());
                         deserialize_default = Some(impl_default_code.clone());
+                        // Store default for OpenAPI schema annotation (e.g., "false" for bool)
+                        schema_default = Some(impl_default_code.clone());
                     }
                     AssignMode::Optional => {
                         read_type = "::core::option::Option<bool>".to_string();
@@ -763,6 +769,7 @@ impl Backend for RustBackend {
                         impl_default_code = format!("{lit}").into();
                         serialize_default = Some(format!("&{lit}").into());
                         deserialize_default = Some(impl_default_code.clone());
+                        schema_default = Some(impl_default_code.clone());
                     }
                     AssignMode::Optional => {
                         read_type = format!("::core::option::Option<{vtable_type}>");
@@ -785,6 +792,7 @@ impl Backend for RustBackend {
                         impl_default_code = format!("{lit}").into();
                         serialize_default = Some(format!("&{lit}").into());
                         deserialize_default = Some(impl_default_code.clone());
+                        schema_default = Some(impl_default_code.clone());
                     }
                     AssignMode::Optional => {
                         read_type = format!("::core::option::Option<{vtable_type}>");
@@ -811,6 +819,7 @@ impl Backend for RustBackend {
             impl_default_code,
             serialize_default,
             deserialize_default,
+            schema_default,
             try_from_code,
             is_copy,
         }
@@ -981,6 +990,7 @@ impl Backend for RustBackend {
         UnionVariant {
             create_name,
             enum_name,
+            original_name: key.to_string(),
             builder_name,
             create_trait,
             owned_type,

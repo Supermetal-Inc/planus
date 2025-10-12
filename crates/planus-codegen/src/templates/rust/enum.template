@@ -14,6 +14,17 @@ pub enum {{ info.name }} {
     {% endfor %}
 }
 
+// FlatBuffers convention is that the variant with value 0 is the default
+impl ::core::default::Default for {{ info.name }} {
+    fn default() -> Self {
+        {% for variant in variants -%}
+        {%- if variant.value == "0" %}
+        Self::{{ variant.name }}
+        {%- endif %}
+        {%- endfor %}
+    }
+}
+
 impl {{ info.name }} {
     /// Array containing all valid variants of {{ info.name }}
     pub const ENUM_VALUES: [Self; {{ variants.len() }}] = [
