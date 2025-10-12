@@ -13,11 +13,13 @@ pub struct {{ info.owned_name }}{
         {%- endfor %}
         {%- if field.info.has_default %}
         #[serde(default)]  // Use default value if field is missing in JSON
+        {%- if field.info.required %} // only showing default for required fields
         {%- match field.info.schema_default %}
         {%- when Some with (default_val) %}
-        #[schema(default = {{ default_val }})]
+        #[schema(default = {{ default_val }})]  // Show default in OpenAPI for required fields
         {%- when None %}
         {%- endmatch %}
+        {%- endif %}
         {%- endif %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},
     {%- endfor -%}
