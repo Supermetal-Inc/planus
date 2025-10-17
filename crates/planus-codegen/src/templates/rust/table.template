@@ -12,10 +12,10 @@ pub struct {{ info.owned_name }}{
         /// {{ docstring }}
         {%- endfor %}
         {%- if field.info.has_default %}
-        #[serde(default)]  // Use default value if field is missing in JSON
+        #[serde(default)]
         {%- match field.info.schema_default %}
         {%- when Some with (default_val) %}
-        #[schema(default = {{ default_val }})]  // Show default in OpenAPI schema
+        #[schema(default = {{ default_val }})]
         {%- when None %}
         {%- endmatch %}
         {%- endif %}
