@@ -98,6 +98,8 @@ pub struct Union {
     pub ref_name_with_lifetime: String,
     pub should_do_eq: bool,
     pub should_do_infallible_conversion: bool,
+    /// Full namespaced name for utoipa schema
+    pub schema_name: String,
 }
 
 #[derive(Clone, Debug)]
@@ -269,6 +271,13 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         decl: &intermediate::Union,
     ) -> Union {
+        // Build fully qualified schema name by joining all path components
+        let schema_name = decl_name
+            .0
+            .iter()
+            .map(|s| s.to_upper_camel_case())
+            .collect::<String>();
+
         let decl_name = decl_name.0.last().unwrap();
         let ref_name = reserve_type_name(&format!("{decl_name}Ref"), declaration_names);
         let builder_name = reserve_type_name(&format!("{decl_name}Builder"), declaration_names);
@@ -283,6 +292,7 @@ impl Backend for RustBackend {
             ref_name,
             should_do_eq: self.eq_analysis[decl_id.0],
             should_do_infallible_conversion: self.infallible_analysis[decl_id.0],
+            schema_name,
         }
     }
 
