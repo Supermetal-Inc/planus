@@ -4,13 +4,23 @@ pub use root::*;
 
 const _: () = ::planus::check_version_compatibility("planus-1.2.0");
 
-{% for docstring in docstrings.iter_strings() %}
+{%- match schema_annotations.description %}
+{%- when Some with (desc) %}
+/// {{ desc }}
+{%- when None %}
+{%- endmatch %}
+{% for docstring in schema_annotations.doc_lines %}
 /// {{ docstring }}
 {%- endfor %}
 #[allow(dead_code, clippy::needless_lifetimes)]
 mod root {
 {%- else -%}
-{% for docstring in docstrings.iter_strings() %}
+{%- match schema_annotations.description %}
+{%- when Some with (desc) %}
+/// {{ desc }}
+{%- when None %}
+{%- endmatch %}
+{% for docstring in schema_annotations.doc_lines %}
 /// {{ docstring }}
 {%- endfor %}
 pub mod {{info.name}} {

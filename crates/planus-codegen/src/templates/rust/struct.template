@@ -1,4 +1,10 @@
-{% for docstring in docstrings.iter_strings() %}
+{# Output type-level doc comments (filtered to remove @tags) #}
+{%- match schema_annotations.description %}
+{%- when Some with (desc) %}
+/// {{ desc }}
+{%- when None %}
+{%- endmatch %}
+{% for docstring in schema_annotations.doc_lines %}
 /// {{ docstring }}
 {%- endfor %}
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd,
@@ -8,7 +14,14 @@
 )]
 pub struct {{ info.owned_name }} {
     {% for field in fields -%}
-        {% for docstring in field.name_and_docs.docstrings.iter_strings() %}
+        {# Output field description as doc comment #}
+        {%- match field.name_and_docs.schema_annotations.description %}
+        {%- when Some with (desc) %}
+        /// {{ desc }}
+        {%- when None %}
+        {%- endmatch %}
+        {# Output non-annotation doc comments #}
+        {% for docstring in field.name_and_docs.schema_annotations.doc_lines %}
         /// {{ docstring }}
         {%- endfor %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},

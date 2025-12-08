@@ -814,6 +814,7 @@ impl Backend for RustBackend {
                 }
             }
         }
+
         TableField {
             name,
             name_with_as,

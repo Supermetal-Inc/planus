@@ -12,12 +12,96 @@ use super::backend::{
 };
 use crate::backend::{DeclInfo, Keywords, Names, RelativeNamespace};
 
+/// Schema annotations parsed from docstring comments for utoipa ToSchema generation.
+#[derive(Clone, Debug, Default)]
+pub struct SchemaAnnotations {
+    /// Description text from @description tag (becomes doc comment)
+    pub description: Option<String>,
+    /// Minimum value from @minimum tag (for numeric fields)
+    pub minimum: Option<String>,
+    /// Maximum value from @maximum tag (for numeric fields)
+    pub maximum: Option<String>,
+    /// Exclusive minimum from @exclusive_minimum or @exclusiveMinimum tag
+    pub exclusive_minimum: Option<String>,
+    /// Exclusive maximum from @exclusive_maximum or @exclusiveMaximum tag
+    pub exclusive_maximum: Option<String>,
+    /// Minimum length from @minLength or @min_length tag (for strings)
+    pub min_length: Option<String>,
+    /// Maximum length from @maxLength or @max_length tag (for strings)
+    pub max_length: Option<String>,
+    /// Minimum items from @minItems or @min_items tag (for arrays/vectors)
+    pub min_items: Option<String>,
+    /// Maximum items from @maxItems or @max_items tag (for arrays/vectors)
+    pub max_items: Option<String>,
+    /// Whether field is nullable from @nullable tag
+    pub nullable: bool,
+    /// Lines that are not annotations (regular doc comments)
+    pub doc_lines: Vec<String>,
+}
+
+impl SchemaAnnotations {
+    /// Parse schema annotations from docstrings.
+    pub fn parse(docstrings: &Docstrings) -> Self {
+        let mut annotations = SchemaAnnotations::default();
+
+        for docstring in docstrings.iter_strings_without_locations() {
+            let trimmed = docstring.trim();
+
+            if let Some(value) = trimmed.strip_prefix("@description ") {
+                annotations.description = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed.strip_prefix("@minimum ") {
+                annotations.minimum = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed.strip_prefix("@maximum ") {
+                annotations.maximum = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed
+                .strip_prefix("@exclusive_minimum ")
+                .or_else(|| trimmed.strip_prefix("@exclusiveMinimum "))
+            {
+                annotations.exclusive_minimum = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed
+                .strip_prefix("@exclusive_maximum ")
+                .or_else(|| trimmed.strip_prefix("@exclusiveMaximum "))
+            {
+                annotations.exclusive_maximum = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed
+                .strip_prefix("@minLength ")
+                .or_else(|| trimmed.strip_prefix("@min_length "))
+            {
+                annotations.min_length = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed
+                .strip_prefix("@maxLength ")
+                .or_else(|| trimmed.strip_prefix("@max_length "))
+            {
+                annotations.max_length = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed
+                .strip_prefix("@minItems ")
+                .or_else(|| trimmed.strip_prefix("@min_items "))
+            {
+                annotations.min_items = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed
+                .strip_prefix("@maxItems ")
+                .or_else(|| trimmed.strip_prefix("@max_items "))
+            {
+                annotations.max_items = Some(value.trim().to_string());
+            } else if trimmed == "@nullable" {
+                annotations.nullable = true;
+            } else if !trimmed.starts_with('@') {
+                // Not an annotation, keep as regular doc comment
+                annotations.doc_lines.push(docstring.to_string());
+            }
+            // Unknown @tags are silently ignored
+        }
+
+        annotations
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BackendNamespace<B: ?Sized + Backend> {
     pub info: B::NamespaceInfo,
     pub children: Vec<BackendNamespace<B>>,
     pub declarations: Vec<BackendDeclaration<B>>,
-    pub docstrings: Docstrings,
+    pub schema_annotations: SchemaAnnotations,
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +116,7 @@ pub enum BackendDeclaration<B: ?Sized + Backend> {
 
 #[derive(Debug, Clone)]
 pub struct BackendTable<B: ?Sized + Backend> {
-    pub docstrings: Docstrings,
+    pub schema_annotations: SchemaAnnotations,
     pub max_vtable_size: u32,
     pub _max_size: u32,
     pub _max_alignment: u32,
@@ -42,7 +126,7 @@ pub struct BackendTable<B: ?Sized + Backend> {
 
 #[derive(Debug, Clone)]
 pub struct BackendStruct<B: ?Sized + Backend> {
-    pub docstrings: Docstrings,
+    pub schema_annotations: SchemaAnnotations,
     pub size: u32,
     pub alignment: u32,
     pub info: B::StructInfo,
@@ -51,7 +135,7 @@ pub struct BackendStruct<B: ?Sized + Backend> {
 
 #[derive(Debug, Clone)]
 pub struct BackendEnum<B: ?Sized + Backend> {
-    pub docstrings: Docstrings,
+    pub schema_annotations: SchemaAnnotations,
     pub size: u32,
     pub info: B::EnumInfo,
     pub variants: Vec<BackendVariant<B::EnumVariantInfo>>,
@@ -59,7 +143,7 @@ pub struct BackendEnum<B: ?Sized + Backend> {
 
 #[derive(Debug, Clone)]
 pub struct BackendUnion<B: ?Sized + Backend> {
-    pub docstrings: Docstrings,
+    pub schema_annotations: SchemaAnnotations,
     pub info: B::UnionInfo,
     pub variants: Vec<BackendVariant<B::UnionVariantInfo>>,
 }
@@ -74,7 +158,7 @@ pub struct BackendRpcService<B: ?Sized + Backend> {
 #[derive(Debug, Clone)]
 pub struct NameAndDocstrings {
     pub original_name: String,
-    pub docstrings: Docstrings,
+    pub schema_annotations: SchemaAnnotations,
 }
 
 #[derive(Debug, Clone)]
@@ -162,7 +246,7 @@ impl<F> BackendTableFields<F> {
                     (
                         NameAndDocstrings {
                             original_name: field_name.clone(),
-                            docstrings: field.docstrings.clone(),
+                            schema_annotations: SchemaAnnotations::parse(&field.docstrings),
                         },
                         backend.generate_table_field(
                             translation_context,
@@ -398,7 +482,7 @@ fn make_recursive_structure<B: ?Sized + Backend>(
         info: current_translated_namespace,
         children,
         declarations: translated_declarations,
-        docstrings: current_namespace.docstrings.clone(),
+        schema_annotations: SchemaAnnotations::parse(&current_namespace.docstrings),
     }
 }
 
@@ -522,7 +606,7 @@ pub fn run_backend<B: ?Sized + Backend>(
                         .map(|(value, variant)| BackendVariant {
                             name_and_docs: NameAndDocstrings {
                                 original_name: variant.name.clone(),
-                                docstrings: variant.docstrings.clone(),
+                                schema_annotations: SchemaAnnotations::parse(&variant.docstrings),
                             },
                             variant: backend.generate_enum_variant(
                                 &mut DeclarationTranslationContext {
@@ -541,7 +625,7 @@ pub fn run_backend<B: ?Sized + Backend>(
                             ),
                         })
                         .collect(),
-                    docstrings: (orig_decl.1).docstrings.clone(),
+                    schema_annotations: SchemaAnnotations::parse(&(orig_decl.1).docstrings),
                 }),
             );
         }
@@ -579,7 +663,7 @@ pub fn run_backend<B: ?Sized + Backend>(
                     decl_path,
                     translated_decl,
                 ),
-                docstrings: (orig_decl.1).docstrings.clone(),
+                schema_annotations: SchemaAnnotations::parse(&(orig_decl.1).docstrings),
             }),
             DeclInfo::Struct(translated_decl, decl) => BackendDeclaration::Struct(BackendStruct {
                 size: decl.size,
@@ -610,12 +694,12 @@ pub fn run_backend<B: ?Sized + Backend>(
                             size: field.size,
                             name_and_docs: NameAndDocstrings {
                                 original_name: field_name.clone(),
-                                docstrings: field.docstrings.clone(),
+                                schema_annotations: SchemaAnnotations::parse(&field.docstrings),
                             },
                         }
                     })
                     .collect(),
-                docstrings: (orig_decl.1).docstrings.clone(),
+                schema_annotations: SchemaAnnotations::parse(&(orig_decl.1).docstrings),
             }),
             DeclInfo::Union(translated_decl, decl) => BackendDeclaration::Union(BackendUnion {
                 info: translated_decl.clone(),
@@ -634,7 +718,7 @@ pub fn run_backend<B: ?Sized + Backend>(
                         BackendVariant {
                             name_and_docs: NameAndDocstrings {
                                 original_name: name.clone(),
-                                docstrings: variant.docstrings.clone(),
+                                schema_annotations: SchemaAnnotations::parse(&variant.docstrings),
                             },
                             variant: backend.generate_union_variant(
                                 &mut translation_context,
@@ -648,7 +732,7 @@ pub fn run_backend<B: ?Sized + Backend>(
                         }
                     })
                     .collect(),
-                docstrings: (orig_decl.1).docstrings.clone(),
+                schema_annotations: SchemaAnnotations::parse(&(orig_decl.1).docstrings),
             }),
             DeclInfo::RpcService(_translated_decl, _decl) => todo!(),
         };

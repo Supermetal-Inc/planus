@@ -1,4 +1,10 @@
-{% for docstring in docstrings.iter_strings_without_locations() %}
+{# Output type-level doc comments (filtered to remove @tags) #}
+{%- match schema_annotations.description %}
+{%- when Some with (desc) %}
+/// {{ desc }}
+{%- when None %}
+{%- endmatch %}
+{% for docstring in schema_annotations.doc_lines %}
 /// {{ docstring }}
 {%- endfor %}
 #[derive(Clone, Debug, PartialEq, PartialOrd,
@@ -8,16 +14,68 @@
 )]
 pub struct {{ info.owned_name }}{
     {% for field in fields.declaration_order() -%}
-        {% for docstring in field.name_and_docs.docstrings.iter_strings_without_locations() %}
-        /// {{ docstring }}
-        {%- endfor %}
-        {%- if field.info.has_default %}
-        #[serde(default)]
-        {%- match field.info.schema_default %}
-        {%- when Some with (default_val) %}
-        #[schema(default = {{ default_val }})]
+        {# Output description as doc comment (utoipa reads description from doc comments for fields) #}
+        {%- match field.name_and_docs.schema_annotations.description %}
+        {%- when Some with (desc) %}
+        /// {{ desc }}
         {%- when None %}
         {%- endmatch %}
+        {# Output non-annotation doc comments #}
+        {% for docstring in field.name_and_docs.schema_annotations.doc_lines %}
+        /// {{ docstring }}
+        {%- endfor %}
+        {# Output serde default attribute if field has default #}
+        {%- if field.info.has_default %}
+        #[serde(default)]
+        {%- endif %}
+        {# Output schema attributes - FlatBuffers default takes precedence #}
+        {%- match field.info.schema_default %}
+        {%- when Some with (def) %}
+        #[schema(default = {{ def }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.minimum %}
+        {%- when Some with (val) %}
+        #[schema(minimum = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.maximum %}
+        {%- when Some with (val) %}
+        #[schema(maximum = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.exclusive_minimum %}
+        {%- when Some with (val) %}
+        #[schema(exclusive_minimum = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.exclusive_maximum %}
+        {%- when Some with (val) %}
+        #[schema(exclusive_maximum = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.min_length %}
+        {%- when Some with (val) %}
+        #[schema(min_length = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.max_length %}
+        {%- when Some with (val) %}
+        #[schema(max_length = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.min_items %}
+        {%- when Some with (val) %}
+        #[schema(min_items = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.max_items %}
+        {%- when Some with (val) %}
+        #[schema(max_items = {{ val }})]
+        {%- when None %}
+        {%- endmatch %}
+        {%- if field.name_and_docs.schema_annotations.nullable %}
+        #[schema(nullable)]
         {%- endif %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},
     {%- endfor -%}
