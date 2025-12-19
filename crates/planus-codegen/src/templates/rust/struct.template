@@ -24,6 +24,11 @@ pub struct {{ info.owned_name }} {
         {% for docstring in field.name_and_docs.schema_annotations.doc_lines %}
         /// {{ docstring }}
         {%- endfor %}
+        {%- match field.name_and_docs.schema_annotations.format_for_utoipa() %}
+        {%- when Some with (fmt) %}
+        #[schema(format = {{ fmt }})]
+        {%- when None %}
+        {%- endmatch %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},
     {% endfor %}
 }

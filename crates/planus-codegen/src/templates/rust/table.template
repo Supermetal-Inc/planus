@@ -77,6 +77,11 @@ pub struct {{ info.owned_name }}{
         {%- if field.name_and_docs.schema_annotations.nullable %}
         #[schema(nullable)]
         {%- endif %}
+        {%- match field.name_and_docs.schema_annotations.format_for_utoipa() %}
+        {%- when Some with (fmt) %}
+        #[schema(format = {{ fmt }})]
+        {%- when None %}
+        {%- endmatch %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},
     {%- endfor -%}
 }

@@ -35,8 +35,63 @@ pub struct SchemaAnnotations {
     pub max_items: Option<String>,
     /// Whether field is nullable from @nullable tag
     pub nullable: bool,
+    /// Format hint from @format tag (e.g., Password, Email, pem-certificate)
+    pub format: Option<String>,
     /// Lines that are not annotations (regular doc comments)
     pub doc_lines: Vec<String>,
+}
+
+/// Known utoipa formats that should be output without quotes
+const KNOWN_FORMATS: &[&str] = &[
+    "Int8",
+    "Int16",
+    "Int32",
+    "Int64",
+    "UInt8",
+    "UInt16",
+    "UInt32",
+    "UInt64",
+    "Float",
+    "Double",
+    "Byte",
+    "Binary",
+    "Date",
+    "DateTime",
+    "Time",
+    "Duration",
+    "Password",
+    "Uuid",
+    "Ulid",
+    "Uri",
+    "UriReference",
+    "Iri",
+    "IriReference",
+    "UriTemplate",
+    "Email",
+    "IdnEmail",
+    "Hostname",
+    "IdnHostname",
+    "Ipv4",
+    "Ipv6",
+    "JsonPointer",
+    "RelativeJsonPointer",
+    "Regex",
+];
+
+impl SchemaAnnotations {
+    /// Known formats are returned as bare identifiers, custom formats as quoted strings.
+    pub fn format_for_utoipa(&self) -> Option<String> {
+        self.format.as_ref().map(|fmt| {
+            // Check if it matches a known format (case-insensitive)
+            for known in KNOWN_FORMATS {
+                if fmt.eq_ignore_ascii_case(known) {
+                    return known.to_string();
+                }
+            }
+            // Custom format - wrap in quotes
+            format!("\"{}\"", fmt)
+        })
+    }
 }
 
 impl SchemaAnnotations {
@@ -85,6 +140,8 @@ impl SchemaAnnotations {
                 annotations.max_items = Some(value.trim().to_string());
             } else if trimmed == "@nullable" {
                 annotations.nullable = true;
+            } else if let Some(value) = trimmed.strip_prefix("@format ") {
+                annotations.format = Some(value.trim().to_string());
             } else if !trimmed.starts_with('@') {
                 // Not an annotation, keep as regular doc comment
                 annotations.doc_lines.push(docstring.to_string());
