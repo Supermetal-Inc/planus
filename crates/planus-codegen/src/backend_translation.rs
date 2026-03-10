@@ -35,6 +35,8 @@ pub struct SchemaAnnotations {
     pub max_items: Option<String>,
     /// Whether field is nullable from @nullable tag
     pub nullable: bool,
+    /// Whether field is immutable after creation from @immutable tag
+    pub immutable: bool,
     /// Format hint from @format tag (e.g., Password, Email, pem-certificate)
     pub format: Option<String>,
     /// Lines that are not annotations (regular doc comments)
@@ -140,6 +142,8 @@ impl SchemaAnnotations {
                 annotations.max_items = Some(value.trim().to_string());
             } else if trimmed == "@nullable" {
                 annotations.nullable = true;
+            } else if trimmed == "@immutable" {
+                annotations.immutable = true;
             } else if let Some(value) = trimmed.strip_prefix("@format ") {
                 annotations.format = Some(value.trim().to_string());
             } else if !trimmed.starts_with('@') {
