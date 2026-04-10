@@ -26,11 +26,30 @@ pub fn generate_rust(declarations: &Declarations) -> eyre::Result<String> {
         declarations,
         &mut rust::analysis::InfallibleConversionAnalysis,
     );
+
+    // Detect short names that appear in more than one namespace so we can
+    // give them fully qualified OpenAPI schema names to prevent collisions.
+    let colliding_names = {
+        use heck::ToUpperCamelCase;
+        let mut counts = std::collections::HashMap::<String, usize>::new();
+        for path in declarations.declarations.keys() {
+            if let Some(short) = path.0.last() {
+                *counts.entry(short.to_upper_camel_case()).or_default() += 1;
+            }
+        }
+        counts
+            .into_iter()
+            .filter(|(_, count)| *count > 1)
+            .map(|(name, _)| name)
+            .collect::<std::collections::HashSet<_>>()
+    };
+
     let output = run_backend(
         &mut RustBackend {
             default_analysis,
             eq_analysis,
             infallible_analysis,
+            colliding_names,
         },
         declarations,
     );

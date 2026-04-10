@@ -12,6 +12,7 @@
 ::serde::Serialize, ::serde::Deserialize,
 ::utoipa::ToSchema
 )]
+#[schema(as = {{ info.schema_name }})]
 pub struct {{ info.owned_name }}{
     {% for field in fields.declaration_order() -%}
         {# Output description as doc comment (utoipa reads description from doc comments for fields) #}

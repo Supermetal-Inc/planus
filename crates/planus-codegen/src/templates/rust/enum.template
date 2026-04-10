@@ -8,6 +8,7 @@
 /// {{ docstring }}
 {%- endfor %}
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, ::serde::Serialize, ::serde::Deserialize, ::utoipa::ToSchema)]
+#[schema(as = {{ info.schema_name }})]
 {%- if !variants.is_empty() -%}
 #[repr({{info.repr_type}})]
 {%- endif -%}

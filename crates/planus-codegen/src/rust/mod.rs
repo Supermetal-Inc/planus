@@ -23,6 +23,9 @@ pub struct RustBackend {
     pub default_analysis: Vec<bool>,
     pub eq_analysis: Vec<bool>,
     pub infallible_analysis: Vec<bool>,
+    /// Short names that appear in more than one FBS namespace. These get fully
+    /// qualified `#[schema(as = ...)]` names to prevent OpenAPI schema collisions.
+    pub colliding_names: std::collections::HashSet<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +40,7 @@ pub struct Table {
     pub builder_name: String,
     pub should_do_default: bool,
     pub should_do_eq: bool,
+    pub schema_name: String,
 }
 
 #[derive(Clone, Debug)]
@@ -82,6 +86,7 @@ pub struct StructField {
 pub struct Enum {
     pub name: String,
     pub repr_type: String,
+    pub schema_name: String,
 }
 
 #[derive(Clone, Debug)]
@@ -220,6 +225,13 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         _decl: &intermediate::Table,
     ) -> Table {
+        let short = decl_name.0.last().unwrap().to_upper_camel_case();
+        let schema_name = if self.colliding_names.contains(&short) {
+            decl_name.0.iter().map(|s| s.to_upper_camel_case()).collect::<String>()
+        } else {
+            short
+        };
+
         let decl_name = decl_name.0.last().unwrap();
         Table {
             owned_name: reserve_type_name(decl_name, declaration_names),
@@ -227,6 +239,7 @@ impl Backend for RustBackend {
             builder_name: reserve_type_name(&format!("{decl_name}Builder"), declaration_names),
             should_do_default: self.default_analysis[decl_id.0],
             should_do_eq: self.eq_analysis[decl_id.0],
+            schema_name,
         }
     }
 
@@ -256,10 +269,18 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         decl: &intermediate::Enum,
     ) -> Enum {
+        let short = decl_name.0.last().unwrap().to_upper_camel_case();
+        let schema_name = if self.colliding_names.contains(&short) {
+            decl_name.0.iter().map(|s| s.to_upper_camel_case()).collect::<String>()
+        } else {
+            short
+        };
+
         let decl_name = decl_name.0.last().unwrap();
         Enum {
             name: reserve_type_name(decl_name, declaration_names),
             repr_type: format!("{:?}", decl.type_).to_lowercase(),
+            schema_name,
         }
     }
 
@@ -271,12 +292,12 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         decl: &intermediate::Union,
     ) -> Union {
-        // Build fully qualified schema name by joining all path components
-        let schema_name = decl_name
-            .0
-            .iter()
-            .map(|s| s.to_upper_camel_case())
-            .collect::<String>();
+        let short = decl_name.0.last().unwrap().to_upper_camel_case();
+        let schema_name = if self.colliding_names.contains(&short) {
+            decl_name.0.iter().map(|s| s.to_upper_camel_case()).collect::<String>()
+        } else {
+            short
+        };
 
         let decl_name = decl_name.0.last().unwrap();
         let ref_name = reserve_type_name(&format!("{decl_name}Ref"), declaration_names);
