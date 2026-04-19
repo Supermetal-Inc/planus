@@ -83,6 +83,11 @@ pub struct {{ info.owned_name }}{
         #[schema(format = {{ fmt }})]
         {%- when None %}
         {%- endmatch %}
+        {%- match field.name_and_docs.schema_annotations.pattern %}
+        {%- when Some with (pat) %}
+        #[schema(pattern = "{{ pat }}")]
+        {%- when None %}
+        {%- endmatch %}
         pub {{ field.info.name }}: {{ field.info.owned_type }},
     {%- endfor -%}
 }

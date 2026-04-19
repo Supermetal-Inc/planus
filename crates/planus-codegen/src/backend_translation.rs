@@ -39,42 +39,35 @@ pub struct SchemaAnnotations {
     pub immutable: bool,
     /// Format hint from @format tag (e.g., Password, Email, pem-certificate)
     pub format: Option<String>,
+    /// Regular-expression pattern from @pattern tag (for strings)
+    pub pattern: Option<String>,
     /// Lines that are not annotations (regular doc comments)
     pub doc_lines: Vec<String>,
 }
 
-/// Known utoipa formats that should be output without quotes
+/// utoipa's `KnownFormat` variants that may be referenced by bare identifier.
+/// Anything outside this set is emitted as a quoted string and threaded through
+/// as a custom OpenAPI `format` value. Must stay in sync with the utoipa
+/// version pinned downstream; mismatched identifiers produce cryptic
+/// "unexpected format" compile errors inside the consumer crate.
 const KNOWN_FORMATS: &[&str] = &[
-    "Int8",
-    "Int16",
     "Int32",
     "Int64",
-    "UInt8",
-    "UInt16",
-    "UInt32",
-    "UInt64",
     "Float",
     "Double",
     "Byte",
     "Binary",
     "Date",
     "DateTime",
-    "Time",
     "Duration",
     "Password",
-    "Uuid",
-    "Ulid",
-    "Uri",
-    "UriReference",
-    "Iri",
-    "IriReference",
-    "UriTemplate",
     "Email",
     "IdnEmail",
     "Hostname",
     "IdnHostname",
     "Ipv4",
     "Ipv6",
+    "UriTemplate",
     "JsonPointer",
     "RelativeJsonPointer",
     "Regex",
@@ -146,6 +139,8 @@ impl SchemaAnnotations {
                 annotations.immutable = true;
             } else if let Some(value) = trimmed.strip_prefix("@format ") {
                 annotations.format = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed.strip_prefix("@pattern ") {
+                annotations.pattern = Some(value.trim().to_string());
             } else if !trimmed.starts_with('@') {
                 // Not an annotation, keep as regular doc comment
                 annotations.doc_lines.push(docstring.to_string());

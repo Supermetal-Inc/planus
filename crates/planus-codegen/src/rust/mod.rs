@@ -234,7 +234,11 @@ impl Backend for RustBackend {
     ) -> Table {
         let short = decl_name.0.last().unwrap().to_upper_camel_case();
         let schema_name = if self.colliding_names.contains(&short) {
-            decl_name.0.iter().map(|s| s.to_upper_camel_case()).collect::<String>()
+            decl_name
+                .0
+                .iter()
+                .map(|s| s.to_upper_camel_case())
+                .collect::<String>()
         } else {
             short
         };
@@ -278,7 +282,11 @@ impl Backend for RustBackend {
     ) -> Enum {
         let short = decl_name.0.last().unwrap().to_upper_camel_case();
         let schema_name = if self.colliding_names.contains(&short) {
-            decl_name.0.iter().map(|s| s.to_upper_camel_case()).collect::<String>()
+            decl_name
+                .0
+                .iter()
+                .map(|s| s.to_upper_camel_case())
+                .collect::<String>()
         } else {
             short
         };
@@ -301,7 +309,11 @@ impl Backend for RustBackend {
     ) -> Union {
         let short = decl_name.0.last().unwrap().to_upper_camel_case();
         let schema_name = if self.colliding_names.contains(&short) {
-            decl_name.0.iter().map(|s| s.to_upper_camel_case()).collect::<String>()
+            decl_name
+                .0
+                .iter()
+                .map(|s| s.to_upper_camel_case())
+                .collect::<String>()
         } else {
             short
         };
