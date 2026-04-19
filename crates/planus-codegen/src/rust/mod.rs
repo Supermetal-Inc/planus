@@ -62,6 +62,10 @@ pub struct TableField {
     pub schema_default: Option<Cow<'static, str>>,
     pub try_from_code: String,
     pub is_copy: bool,
+    /// Code snippet that recursively clears secrets for this field's JSON
+    /// value, emitted by `clear_secrets_json`. `None` for primitive/scalar
+    /// fields that cannot transitively carry secrets.
+    pub clear_secrets_recurse_code: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -119,6 +123,9 @@ pub struct UnionVariant {
     pub ref_type: String,
     pub is_struct: bool,
     pub can_do_infallible_conversion: bool,
+    /// Fully-qualified type path used to call `clear_secrets_json` on this
+    /// variant. `None` for struct/string variants which don't carry secrets.
+    pub clear_secrets_dispatch_type: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -363,6 +370,8 @@ impl Backend for RustBackend {
         } else {
             format!("::core::convert::TryInto::try_into(value.{name}()?)?")
         };
+
+        let clear_secrets_recurse_code = compute_clear_secrets_recurse_code(&resolved_type, &name);
 
         match resolved_type {
             ResolvedType::Struct(
@@ -854,6 +863,7 @@ impl Backend for RustBackend {
             schema_default,
             try_from_code,
             is_copy,
+            clear_secrets_recurse_code,
         }
     }
 
@@ -980,22 +990,20 @@ impl Backend for RustBackend {
         let ref_type;
         let mut is_struct = false;
         let can_do_infallible_conversion;
+        let mut clear_secrets_dispatch_type: Option<String> = None;
 
         match resolved_type {
             ResolvedType::Table(_, _, info, relative_namespace) => {
-                owned_type = format!(
-                    "::planus::alloc::boxed::Box<{}>",
-                    format_relative_namespace(&relative_namespace, &info.owned_name)
-                );
+                let type_path =
+                    format_relative_namespace(&relative_namespace, &info.owned_name).to_string();
+                owned_type = format!("::planus::alloc::boxed::Box<{type_path}>");
                 ref_type = format!(
                     "{}<'a>",
                     format_relative_namespace(&relative_namespace, &info.ref_name)
                 );
-                create_trait = format!(
-                    "WriteAsOffset<{}>",
-                    format_relative_namespace(&relative_namespace, &info.owned_name)
-                );
+                create_trait = format!("WriteAsOffset<{type_path}>");
                 can_do_infallible_conversion = false;
+                clear_secrets_dispatch_type = Some(type_path);
             }
             ResolvedType::Struct(decl_id, _, info, relative_namespace) => {
                 owned_type =
@@ -1029,7 +1037,47 @@ impl Backend for RustBackend {
             ref_type,
             is_struct,
             can_do_infallible_conversion,
+            clear_secrets_dispatch_type,
         }
+    }
+}
+
+/// Emits the per-field recursion snippet used by the generated
+/// `clear_secrets_json` method on tables. `None` for primitive fields that
+/// cannot transitively carry secrets.
+fn compute_clear_secrets_recurse_code(
+    resolved_type: &ResolvedType<'_, RustBackend>,
+    field_name: &str,
+) -> Option<String> {
+    let recursive_type = match resolved_type {
+        ResolvedType::Table(_, _, info, relative_namespace) => {
+            Some(format_relative_namespace(relative_namespace, &info.owned_name).to_string())
+        }
+        ResolvedType::Union(_, _, info, relative_namespace) => {
+            Some(format_relative_namespace(relative_namespace, &info.owned_name).to_string())
+        }
+        ResolvedType::Vector(inner) => match inner.as_ref() {
+            ResolvedType::Table(_, _, info, relative_namespace) => Some(format!(
+                "__vec_recurse:{}",
+                format_relative_namespace(relative_namespace, &info.owned_name)
+            )),
+            ResolvedType::Union(_, _, info, relative_namespace) => Some(format!(
+                "__vec_recurse:{}",
+                format_relative_namespace(relative_namespace, &info.owned_name)
+            )),
+            _ => None,
+        },
+        _ => None,
+    }?;
+
+    if let Some(type_path) = recursive_type.strip_prefix("__vec_recurse:") {
+        Some(format!(
+            "if let ::core::option::Option::Some(__arr) = __obj.get_mut(\"{field_name}\").and_then(::serde_json::Value::as_array_mut) {{ for __item in __arr {{ {type_path}::clear_secrets_json(__item); }} }}"
+        ))
+    } else {
+        Some(format!(
+            "if let ::core::option::Option::Some(__child) = __obj.get_mut(\"{field_name}\") {{ {recursive_type}::clear_secrets_json(__child); }}"
+        ))
     }
 }
 

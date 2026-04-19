@@ -125,6 +125,23 @@ impl {{info.owned_name}} {
         {%- endfor %}
     ];
 
+    /// Removes SECRET_FIELDS from a serialized representation of this table
+    /// and recursively clears secrets from nested tables and unions. Intended
+    /// for redacting GET responses so credentials never leave the backend.
+    pub fn clear_secrets_json(__value: &mut ::serde_json::Value) {
+        let ::core::option::Option::Some(__obj) = __value.as_object_mut() else { return };
+        for __field in Self::SECRET_FIELDS {
+            __obj.remove(*__field);
+        }
+        {%- for field in fields.declaration_order() %}
+        {%- match field.info.clear_secrets_recurse_code %}
+        {%- when Some with (code) %}
+        {{ code }}
+        {%- when None %}
+        {%- endmatch %}
+        {%- endfor %}
+    }
+
     /// Creates a [{{info.builder_name}}] for serializing an instance of this table.
     #[inline]
     pub fn builder() -> {{ info.builder_name}}<()> {

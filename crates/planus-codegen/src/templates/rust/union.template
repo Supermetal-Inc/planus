@@ -48,6 +48,21 @@ impl {{info.owned_name}} {
     }
 
     {% endfor %}
+
+    /// Dispatches to the variant's `clear_secrets_json` based on the serde
+    /// tag present in the serialized union value.
+    pub fn clear_secrets_json(__value: &mut ::serde_json::Value) {
+        let ::core::option::Option::Some(__obj) = __value.as_object_mut() else { return };
+        {%- for variant in variants %}
+        {%- match variant.clear_secrets_dispatch_type %}
+        {%- when Some with (type_path) %}
+        if let ::core::option::Option::Some(__child) = __obj.get_mut("{{ variant.original_name }}") {
+            {{ type_path }}::clear_secrets_json(__child);
+        }
+        {%- when None %}
+        {%- endmatch %}
+        {%- endfor %}
+    }
 }
 {% endif %}
 
