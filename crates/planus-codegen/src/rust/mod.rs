@@ -522,6 +522,10 @@ impl Backend for RustBackend {
                             format!("&{}::{}", owned_type, variants[*variant_index].name).into(),
                         );
                         deserialize_default = Some(impl_default_code.clone());
+                        // utoipa accepts a JSON-serializable literal for `default`; serde emits
+                        // the variant name as-is, so the literal matches the wire form.
+                        schema_default =
+                            Some(format!("\"{}\"", variants[*variant_index].name).into());
                     }
                     AssignMode::Optional => {
                         read_type = format!("::core::option::Option<{vtable_type}>");
