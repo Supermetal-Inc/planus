@@ -41,6 +41,15 @@ pub struct SchemaAnnotations {
     pub format: Option<String>,
     /// Regular-expression pattern from @pattern tag (for strings)
     pub pattern: Option<String>,
+    /// UI section grouping from @section "<name>" tag.
+    pub section: Option<String>,
+    /// UI ordering hint within a section from @priority N tag.
+    pub priority: Option<String>,
+    /// Whether this field's @section is collapsed by default (@collapsible tag).
+    pub collapsible: bool,
+    /// Whether the field or union variant is unsupported by the backend
+    /// (filters it out of the UI) (@unsupported tag).
+    pub unsupported: bool,
     /// Lines that are not annotations (regular doc comments)
     pub doc_lines: Vec<String>,
 }
@@ -137,10 +146,21 @@ impl SchemaAnnotations {
                 annotations.nullable = true;
             } else if trimmed == "@immutable" {
                 annotations.immutable = true;
+            } else if trimmed == "@collapsible" {
+                annotations.collapsible = true;
+            } else if trimmed == "@unsupported" {
+                annotations.unsupported = true;
             } else if let Some(value) = trimmed.strip_prefix("@format ") {
                 annotations.format = Some(value.trim().to_string());
             } else if let Some(value) = trimmed.strip_prefix("@pattern ") {
                 annotations.pattern = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed.strip_prefix("@section ") {
+                // `@section "<name>"` — strip optional surrounding quotes.
+                let raw = value.trim();
+                let trimmed_name = raw.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(raw);
+                annotations.section = Some(trimmed_name.to_string());
+            } else if let Some(value) = trimmed.strip_prefix("@priority ") {
+                annotations.priority = Some(value.trim().to_string());
             } else if !trimmed.starts_with('@') {
                 // Not an annotation, keep as regular doc comment
                 annotations.doc_lines.push(docstring.to_string());
