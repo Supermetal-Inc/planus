@@ -23,9 +23,6 @@ pub struct RustBackend {
     pub default_analysis: Vec<bool>,
     pub eq_analysis: Vec<bool>,
     pub infallible_analysis: Vec<bool>,
-    /// Short names that appear in more than one FBS namespace. These get fully
-    /// qualified `#[schema(as = ...)]` names to prevent OpenAPI schema collisions.
-    pub colliding_names: std::collections::HashSet<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -232,16 +229,11 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         _decl: &intermediate::Table,
     ) -> Table {
-        let short = decl_name.0.last().unwrap().to_upper_camel_case();
-        let schema_name = if self.colliding_names.contains(&short) {
-            decl_name
-                .0
-                .iter()
-                .map(|s| s.to_upper_camel_case())
-                .collect::<String>()
-        } else {
-            short
-        };
+        let schema_name = decl_name
+            .0
+            .iter()
+            .map(|s| s.to_upper_camel_case())
+            .collect::<String>();
 
         let decl_name = decl_name.0.last().unwrap();
         Table {
@@ -280,16 +272,11 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         decl: &intermediate::Enum,
     ) -> Enum {
-        let short = decl_name.0.last().unwrap().to_upper_camel_case();
-        let schema_name = if self.colliding_names.contains(&short) {
-            decl_name
-                .0
-                .iter()
-                .map(|s| s.to_upper_camel_case())
-                .collect::<String>()
-        } else {
-            short
-        };
+        let schema_name = decl_name
+            .0
+            .iter()
+            .map(|s| s.to_upper_camel_case())
+            .collect::<String>();
 
         let decl_name = decl_name.0.last().unwrap();
         Enum {
@@ -307,16 +294,11 @@ impl Backend for RustBackend {
         decl_name: &AbsolutePath,
         decl: &intermediate::Union,
     ) -> Union {
-        let short = decl_name.0.last().unwrap().to_upper_camel_case();
-        let schema_name = if self.colliding_names.contains(&short) {
-            decl_name
-                .0
-                .iter()
-                .map(|s| s.to_upper_camel_case())
-                .collect::<String>()
-        } else {
-            short
-        };
+        let schema_name = decl_name
+            .0
+            .iter()
+            .map(|s| s.to_upper_camel_case())
+            .collect::<String>();
 
         let decl_name = decl_name.0.last().unwrap();
         let ref_name = reserve_type_name(&format!("{decl_name}Ref"), declaration_names);
