@@ -167,7 +167,10 @@ impl SchemaAnnotations {
             } else if let Some(value) = trimmed.strip_prefix("@section ") {
                 // `@section "<name>"` — strip optional surrounding quotes.
                 let raw = value.trim();
-                let trimmed_name = raw.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(raw);
+                let trimmed_name = raw
+                    .strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"'))
+                    .unwrap_or(raw);
                 annotations.section = Some(trimmed_name.to_string());
             } else if let Some(value) = trimmed.strip_prefix("@priority ") {
                 annotations.priority = Some(value.trim().to_string());

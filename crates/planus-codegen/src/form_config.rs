@@ -56,7 +56,9 @@ struct TypeMeta {
 
 impl TypeMeta {
     fn is_empty(&self) -> bool {
-        self.fields.is_empty() && self.unsupported_variants.is_empty() && self.section_order.is_empty()
+        self.fields.is_empty()
+            && self.unsupported_variants.is_empty()
+            && self.section_order.is_empty()
     }
 }
 
@@ -68,7 +70,10 @@ fn parse_section_order(docstrings: &Docstrings) -> Vec<String> {
                 .split(',')
                 .map(|s| {
                     let t = s.trim();
-                    t.strip_prefix('"').and_then(|x| x.strip_suffix('"')).unwrap_or(t).to_string()
+                    t.strip_prefix('"')
+                        .and_then(|x| x.strip_suffix('"'))
+                        .unwrap_or(t)
+                        .to_string()
                 })
                 .filter(|s| !s.is_empty())
                 .collect();
