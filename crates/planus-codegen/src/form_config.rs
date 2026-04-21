@@ -1,11 +1,9 @@
-//! Emits a JSON sidecar describing per-type UI form metadata (sections,
-//! priorities, collapsibles, unsupported variants, immutable fields).
-//! Read by the frontend codegen to produce a static `FORM_CONFIG` map that
-//! `ZodForm` looks up by schema reference at render time.
+//! Emits a JSON sidecar of per-type UI form annotations.
 
 use std::collections::BTreeMap;
 
 use heck::ToUpperCamelCase;
+use planus_types::ast::Docstrings;
 use planus_types::intermediate::{AbsolutePath, DeclarationKind, Declarations};
 use serde::Serialize;
 
@@ -17,13 +15,19 @@ struct FieldMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
     section: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    priority: Option<String>,
+    priority: Option<i64>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     collapsible: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     unsupported: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     immutable: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    inline: bool,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    allowed_values: BTreeMap<String, Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    unsupported_fields: Vec<String>,
 }
 
 impl FieldMeta {
@@ -33,6 +37,9 @@ impl FieldMeta {
             && !self.collapsible
             && !self.unsupported
             && !self.immutable
+            && !self.inline
+            && self.allowed_values.is_empty()
+            && self.unsupported_fields.is_empty()
     }
 }
 
@@ -43,12 +50,31 @@ struct TypeMeta {
     fields: BTreeMap<String, FieldMeta>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     unsupported_variants: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    section_order: Vec<String>,
 }
 
 impl TypeMeta {
     fn is_empty(&self) -> bool {
-        self.fields.is_empty() && self.unsupported_variants.is_empty()
+        self.fields.is_empty() && self.unsupported_variants.is_empty() && self.section_order.is_empty()
     }
+}
+
+fn parse_section_order(docstrings: &Docstrings) -> Vec<String> {
+    for line in docstrings.iter_strings_without_locations() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("@sections ") {
+            return rest
+                .split(',')
+                .map(|s| {
+                    let t = s.trim();
+                    t.strip_prefix('"').and_then(|x| x.strip_suffix('"')).unwrap_or(t).to_string()
+                })
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+    }
+    Vec::new()
 }
 
 /// Joins a declaration's namespace path into UpperCamelCase to match the
@@ -69,14 +95,18 @@ pub fn generate_form_config(declarations: &Declarations) -> eyre::Result<String>
 
         match &decl.kind {
             DeclarationKind::Table(table) => {
+                meta.section_order = parse_section_order(&decl.docstrings);
                 for (field_name, field) in &table.fields {
                     let ann = SchemaAnnotations::parse(&field.docstrings);
                     let fm = FieldMeta {
                         section: ann.section,
-                        priority: ann.priority,
+                        priority: ann.priority.as_deref().and_then(|s| s.parse::<i64>().ok()),
                         collapsible: ann.collapsible,
                         unsupported: ann.unsupported,
                         immutable: ann.immutable,
+                        inline: ann.inline,
+                        allowed_values: ann.allowed_values.into_iter().collect(),
+                        unsupported_fields: ann.unsupported_fields,
                     };
                     if !fm.is_empty() {
                         meta.fields.insert(field_name.clone(), fm);

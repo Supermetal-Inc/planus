@@ -50,6 +50,14 @@ pub struct SchemaAnnotations {
     /// Whether the field or union variant is unsupported by the backend
     /// (filters it out of the UI) (@unsupported tag).
     pub unsupported: bool,
+    /// Render a nested-object field's children at the parent level (@inline tag).
+    pub inline: bool,
+    /// Per-subfield enum value allowlists from @allowedValues <subfield>: v1, v2 tags.
+    /// Applied when rendering sub-fields of this field's type.
+    pub allowed_values: Vec<(String, Vec<String>)>,
+    /// Dotted paths (relative to this field's type) to hide when rendering,
+    /// from @unsupportedFields p1, p2 tag.
+    pub unsupported_fields: Vec<String>,
     /// Lines that are not annotations (regular doc comments)
     pub doc_lines: Vec<String>,
 }
@@ -150,6 +158,8 @@ impl SchemaAnnotations {
                 annotations.collapsible = true;
             } else if trimmed == "@unsupported" {
                 annotations.unsupported = true;
+            } else if trimmed == "@inline" {
+                annotations.inline = true;
             } else if let Some(value) = trimmed.strip_prefix("@format ") {
                 annotations.format = Some(value.trim().to_string());
             } else if let Some(value) = trimmed.strip_prefix("@pattern ") {
@@ -161,6 +171,26 @@ impl SchemaAnnotations {
                 annotations.section = Some(trimmed_name.to_string());
             } else if let Some(value) = trimmed.strip_prefix("@priority ") {
                 annotations.priority = Some(value.trim().to_string());
+            } else if let Some(value) = trimmed.strip_prefix("@allowedValues ") {
+                if let Some((subfield, values)) = value.split_once(':') {
+                    let vs: Vec<String> = values
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if !vs.is_empty() {
+                        annotations
+                            .allowed_values
+                            .push((subfield.trim().to_string(), vs));
+                    }
+                }
+            } else if let Some(value) = trimmed.strip_prefix("@unsupportedFields ") {
+                let paths: Vec<String> = value
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                annotations.unsupported_fields.extend(paths);
             } else if !trimmed.starts_with('@') {
                 // Not an annotation, keep as regular doc comment
                 annotations.doc_lines.push(docstring.to_string());
