@@ -14,6 +14,8 @@ askama.workspace = true
 eyre.workspace = true
 heck.workspace = true
 random_color.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 thiserror.workspace = true
 vec_map.workspace = true
 

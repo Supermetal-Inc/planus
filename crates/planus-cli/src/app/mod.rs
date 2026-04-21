@@ -1,5 +1,6 @@
 mod check;
 mod dot;
+mod form_config;
 mod format;
 mod gen_completions;
 mod rust;
@@ -36,6 +37,7 @@ pub struct App {
 pub enum Command {
     Dot(dot::Command),
     Rust(rust::Command),
+    FormConfig(form_config::Command),
     View(view::Command),
     Format(format::Command),
     Check(check::Command),
@@ -61,6 +63,7 @@ impl App {
         match self.command {
             Command::Dot(command) => command.run(self.app_options),
             Command::Rust(command) => command.run(self.app_options),
+            Command::FormConfig(command) => command.run(self.app_options),
             Command::Format(command) => command.run(self.app_options),
             Command::Check(command) => command.run(self.app_options),
             Command::GenerateCompletions(command) => command.run(self.app_options),

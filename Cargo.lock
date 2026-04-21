@@ -948,6 +948,8 @@ dependencies = [
  "heck",
  "planus-types",
  "random_color",
+ "serde",
+ "serde_json",
  "thiserror",
  "vec_map",
 ]

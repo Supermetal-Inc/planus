@@ -16,8 +16,11 @@ mod analysis;
 mod backend;
 mod backend_translation;
 mod dot;
+mod form_config;
 mod rust;
 mod templates;
+
+pub use form_config::generate_form_config;
 
 pub fn generate_rust(declarations: &Declarations) -> eyre::Result<String> {
     let default_analysis = run_analysis(declarations, &mut rust::analysis::DefaultAnalysis);
