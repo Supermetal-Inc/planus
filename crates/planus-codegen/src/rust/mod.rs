@@ -766,6 +766,7 @@ impl Backend for RustBackend {
                         impl_default_code = format!("::core::convert::Into::into({s:?})").into();
                         serialize_default = Some(format!("{s:?}").into());
                         deserialize_default = Some(impl_default_code.clone());
+                        schema_default = Some(format!("{s:?}").into());
                         try_from_code = format!("::core::convert::Into::into(value.{name}()?)");
                     }
                     AssignMode::HasDefault(..) => unreachable!(),
