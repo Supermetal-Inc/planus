@@ -58,6 +58,8 @@ pub struct SchemaAnnotations {
     /// Dotted paths (relative to this field's type) to hide when rendering,
     /// from @unsupportedFields p1, p2 tag.
     pub unsupported_fields: Vec<String>,
+    pub auto_generate: Option<String>,
+    pub auto_generate_field: bool,
     /// Lines that are not annotations (regular doc comments)
     pub doc_lines: Vec<String>,
 }
@@ -194,6 +196,15 @@ impl SchemaAnnotations {
                     .filter(|s| !s.is_empty())
                     .collect();
                 annotations.unsupported_fields.extend(paths);
+            } else if let Some(value) = trimmed.strip_prefix("@auto_generate ") {
+                let raw = value.trim();
+                let endpoint = raw
+                    .strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"'))
+                    .unwrap_or(raw);
+                annotations.auto_generate = Some(endpoint.to_string());
+            } else if trimmed == "@auto_generate_field" {
+                annotations.auto_generate_field = true;
             } else if !trimmed.starts_with('@') {
                 // Not an annotation, keep as regular doc comment
                 annotations.doc_lines.push(docstring.to_string());

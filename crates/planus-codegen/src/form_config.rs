@@ -28,6 +28,8 @@ struct FieldMeta {
     allowed_values: BTreeMap<String, Vec<String>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     unsupported_fields: Vec<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    auto_generate_field: bool,
 }
 
 impl FieldMeta {
@@ -40,6 +42,7 @@ impl FieldMeta {
             && !self.inline
             && self.allowed_values.is_empty()
             && self.unsupported_fields.is_empty()
+            && !self.auto_generate_field
     }
 }
 
@@ -52,6 +55,8 @@ struct TypeMeta {
     unsupported_variants: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     section_order: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    auto_generate: Option<String>,
 }
 
 impl TypeMeta {
@@ -59,6 +64,7 @@ impl TypeMeta {
         self.fields.is_empty()
             && self.unsupported_variants.is_empty()
             && self.section_order.is_empty()
+            && self.auto_generate.is_none()
     }
 }
 
@@ -101,6 +107,7 @@ pub fn generate_form_config(declarations: &Declarations) -> eyre::Result<String>
         match &decl.kind {
             DeclarationKind::Table(table) => {
                 meta.section_order = parse_section_order(&decl.docstrings);
+                meta.auto_generate = SchemaAnnotations::parse(&decl.docstrings).auto_generate;
                 for (field_name, field) in &table.fields {
                     let ann = SchemaAnnotations::parse(&field.docstrings);
                     let fm = FieldMeta {
@@ -112,6 +119,7 @@ pub fn generate_form_config(declarations: &Declarations) -> eyre::Result<String>
                         inline: ann.inline,
                         allowed_values: ann.allowed_values.into_iter().collect(),
                         unsupported_fields: ann.unsupported_fields,
+                        auto_generate_field: ann.auto_generate_field,
                     };
                     if !fm.is_empty() {
                         meta.fields.insert(field_name.clone(), fm);
